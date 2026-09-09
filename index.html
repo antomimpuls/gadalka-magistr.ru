@@ -1697,9 +1697,14 @@ ym(SITE_SETTINGS.yandexMetrikaId,"init",{clickmap:true,trackLinks:true,accurateT
       return value;
     }
 
+    function isAndroidClient() {
+      const ua = String((global.navigator && global.navigator.userAgent) || '');
+      return /Android/i.test(ua);
+    }
+
     function isMobileClient() {
       const ua = String((global.navigator && global.navigator.userAgent) || '');
-      return /Android|iPhone|iPad|iPod/i.test(ua) ||
+      return isAndroidClient() || /iPhone|iPad|iPod/i.test(ua) ||
         (/Macintosh/i.test(ua) && Number((global.navigator && global.navigator.maxTouchPoints) || 0) > 1);
     }
 
@@ -1707,12 +1712,9 @@ ym(SITE_SETTINGS.yandexMetrikaId,"init",{clickmap:true,trackLinks:true,accurateT
       if (!isMobileClient()) return '';
       try {
         const url = new URL(value);
-        if (url.pathname !== '/:push') return '';
-        const userId = String(url.searchParams.get('userId') || '').trim();
-        if (!/^\d+$/.test(userId)) return '';
-        // MAX documents app links on max.ru. Android/iOS can hand this HTTPS
-        // URL to the installed client while browsers retain a valid fallback.
-        return 'https://max.ru/:push?userId=' + encodeURIComponent(userId);
+        const userId = url.hostname === 'web.max.ru' ? url.searchParams.get('userId') : '';
+        if (!/^\d+$/.test(userId || '')) return '';
+        return 'max://max.ru/:push?userId=' + userId;
       } catch (_) { return ''; }
     }
 
@@ -1821,7 +1823,7 @@ ym(SITE_SETTINGS.yandexMetrikaId,"init",{clickmap:true,trackLinks:true,accurateT
         }
       } catch (_) {}
       const targetUrl = navigationUrl(url);
-      if (isMobileClient() && targetUrl.indexOf('https://max.ru/') === 0) {
+      if (isMobileClient() && (targetUrl.indexOf('max://') === 0 || targetUrl.indexOf('intent://') === 0)) {
         // Same-tab navigation preserves the user gesture required for the
         // operating system to hand an HTTPS app link to MAX.
         try { global.location.href = targetUrl; } catch (_) {}
@@ -1877,7 +1879,7 @@ ym(SITE_SETTINGS.yandexMetrikaId,"init",{clickmap:true,trackLinks:true,accurateT
           button.setAttribute('role', 'button');
         } else {
           button.href = targetUrl;
-          if (isMobileClient() && targetUrl.indexOf('https://max.ru/') === 0) {
+          if (isMobileClient() && (targetUrl.indexOf('max://') === 0 || targetUrl.indexOf('intent://') === 0)) {
             button.removeAttribute('target');
             button.removeAttribute('rel');
           } else {
